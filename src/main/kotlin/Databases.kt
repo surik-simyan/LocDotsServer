@@ -10,6 +10,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import surik.simyan.locdots.server.data.Dot
+import surik.simyan.locdots.server.data.Payload
 
 fun Application.configureDatabases() {
     val mongoDatabase = connectToMongoDB()
@@ -17,8 +18,13 @@ fun Application.configureDatabases() {
     routing {
         // Create dot
         post("/dots") {
-            val dot = call.receive<Dot>()
-            val id = dotService.create(dot)
+            val payload = call.receive<Payload>()
+            when {
+                payload.message == null -> call.respond(HttpStatusCode.BadRequest, "Note can not be empty.")
+                payload.message.length >= 500 -> call.respond(HttpStatusCode.BadRequest, "You note is too long.")
+                payload.userId.isNullOrEmpty() -> call.respond(HttpStatusCode.BadRequest, "Invalid userId.")
+            }
+            val id = dotService.create(payload)
             call.respond(HttpStatusCode.Created, id)
         }
 

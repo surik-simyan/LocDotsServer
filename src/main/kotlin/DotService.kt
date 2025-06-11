@@ -5,9 +5,14 @@ import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.bson.Document
 import org.bson.types.ObjectId
 import surik.simyan.locdots.server.data.Dot
+import surik.simyan.locdots.server.data.Payload
 
 class DotService(private val database: MongoDatabase) {
     var collection: MongoCollection<Document>
@@ -18,8 +23,13 @@ class DotService(private val database: MongoDatabase) {
     }
 
     // Create new dot
-    suspend fun create(dot: Dot): String = withContext(Dispatchers.IO) {
-        val doc = dot.toDocument()
+    suspend fun create(payload: Payload): String = withContext(Dispatchers.IO) {
+        val doc = Dot(
+            ObjectId(),
+            payload.userId!!,
+            payload.message!!,
+            Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        ).toDocument()
         collection.insertOne(doc)
         doc["_id"].toString()
     }

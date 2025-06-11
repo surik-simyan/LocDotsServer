@@ -5,5 +5,5 @@ ktor:
     deployment:
         port: 8081
 mongo:
-    maxPoolSize: "postgres"
+    maxPoolSize: "20"
     databaseName: "dots"
