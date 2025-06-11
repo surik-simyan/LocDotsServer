@@ -1,0 +1,38 @@
+services:
+  mongodb:
+    image: mongo:latest
+    platform: linux/amd64
+    restart: always
+    container_name: mongodb-container
+    volumes:
+      - mongodb:/data/db
+    networks:
+      - locdots_internal
+
+  locdots:
+    build: .
+    platform: linux/amd64
+    restart: always
+    container_name: locdots-server
+    expose:
+      - "8081:8081"
+    environment:
+      PORT: 8081
+      MONGODB_HOST: mongodb
+      MONGODB_URI: mongodb://mongodb:27017
+      DB_NAME: locdots
+      NAME: LocDots
+    depends_on:
+      - mongodb
+    networks:
+      - web
+      - locdots_internal
+
+volumes:
+  mongodb: { }
+
+networks:
+  web:
+    external: true
+  locdots_internal:
+    internal: true

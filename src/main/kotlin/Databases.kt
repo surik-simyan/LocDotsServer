@@ -9,49 +9,60 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import surik.simyan.locdots.server.data.Dot
+import surik.simyan.locdots.server.data.Payload
 
 fun Application.configureDatabases() {
     val mongoDatabase = connectToMongoDB()
-    val carService = CarService(mongoDatabase)
+    val dotService = DotService(mongoDatabase)
     routing {
-        // Create car
-        post("/cars") {
-            val car = call.receive<Car>()
-            val id = carService.create(car)
+        // Create dot
+        post("/dots") {
+            val payload = call.receive<Payload>()
+            when {
+                payload.message == null -> call.respond(HttpStatusCode.BadRequest, "Note can not be empty.")
+                payload.message.length >= 500 -> call.respond(HttpStatusCode.BadRequest, "You note is too long.")
+                payload.userId.isNullOrEmpty() -> call.respond(HttpStatusCode.BadRequest, "Invalid userId.")
+            }
+            val id = dotService.create(payload)
             call.respond(HttpStatusCode.Created, id)
         }
-        // Read car
-        get("/cars/{id}") {
-            val id = call.parameters["id"] ?: throw IllegalArgumentException("No ID found")
-            carService.read(id)?.let { car ->
-                call.respond(car)
-            } ?: call.respond(HttpStatusCode.NotFound)
+
+        // Create dot
+        get("/dots") {
+            dotService.read()?.let {
+                call.respond(it)
+            } ?: call.respond(HttpStatusCode.BadRequest)
         }
-        // Update car
-        put("/cars/{id}") {
-            val id = call.parameters["id"] ?: throw IllegalArgumentException("No ID found")
-            val car = call.receive<Car>()
-            carService.update(id, car)?.let {
-                call.respond(HttpStatusCode.OK)
-            } ?: call.respond(HttpStatusCode.NotFound)
-        }
-        // Delete car
-        delete("/cars/{id}") {
-            val id = call.parameters["id"] ?: throw IllegalArgumentException("No ID found")
-            carService.delete(id)?.let {
-                call.respond(HttpStatusCode.OK)
-            } ?: call.respond(HttpStatusCode.NotFound)
-        }
+//        // Read car
+//        get("/cars/{id}") {
+//            val id = call.parameters["id"] ?: throw IllegalArgumentException("No ID found")
+//            carService.read(id)?.let { car ->
+//                call.respond(car)
+//            } ?: call.respond(HttpStatusCode.NotFound)
+//        }
+//        // Update car
+//        put("/cars/{id}") {
+//            val id = call.parameters["id"] ?: throw IllegalArgumentException("No ID found")
+//            val car = call.receive<Car>()
+//            carService.update(id, car)?.let {
+//                call.respond(HttpStatusCode.OK)
+//            } ?: call.respond(HttpStatusCode.NotFound)
+//        }
+//        // Delete car
+//        delete("/cars/{id}") {
+//            val id = call.parameters["id"] ?: throw IllegalArgumentException("No ID found")
+//            carService.delete(id)?.let {
+//                call.respond(HttpStatusCode.OK)
+//            } ?: call.respond(HttpStatusCode.NotFound)
+//        }
     }
 }
+
 /**
  * Establishes connection with a MongoDB database.
  *
  * The following configuration properties (in application.yaml/application.conf) can be specified:
- * * `db.mongo.user` username for your database
- * * `db.mongo.password` password for the user
- * * `db.mongo.host` host that will be used for the database connection
- * * `db.mongo.port` port that will be used for the database connection
  * * `db.mongo.maxPoolSize` maximum number of connections to a MongoDB server
  * * `db.mongo.database.name` name of the database
  *
@@ -62,15 +73,10 @@ fun Application.configureDatabases() {
  * @returns [MongoDatabase] instance
  * */
 fun Application.connectToMongoDB(): MongoDatabase {
-    val user = environment.config.tryGetString("db.mongo.user")
-    val password = environment.config.tryGetString("db.mongo.password")
-    val host = environment.config.tryGetString("db.mongo.host") ?: "127.0.0.1"
-    val port = environment.config.tryGetString("db.mongo.port") ?: "27017"
-    val maxPoolSize = environment.config.tryGetString("db.mongo.maxPoolSize")?.toInt() ?: 20
-    val databaseName = environment.config.tryGetString("db.mongo.database.name") ?: "myDatabase"
+    val maxPoolSize = environment.config.tryGetString("mongo.maxPoolSize")?.toInt() ?: 20
+    val databaseName = environment.config.tryGetString("mongo.databaseName") ?: "dots"
 
-    val credentials = user?.let { userVal -> password?.let { passwordVal -> "$userVal:$passwordVal@" } }.orEmpty()
-    val uri = "mongodb://$credentials$host:$port/?maxPoolSize=$maxPoolSize&w=majority"
+    val uri = "mongodb://mongodb:27017/?maxPoolSize=$maxPoolSize&w=majority"
 
     val mongoClient = MongoClients.create(uri)
     val database = mongoClient.getDatabase(databaseName)
