@@ -1,28 +1,67 @@
 package surik.simyan.locdots
 
-import com.mongodb.client.*
+import com.mongodb.client.MongoClients
+import com.mongodb.client.MongoDatabase
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.config.*
-import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import surik.simyan.locdots.server.data.Dot
+import kotlinx.coroutines.launch
 import surik.simyan.locdots.server.data.Payload
+import surik.simyan.locdots.server.mappers.toDomain
 
 fun Application.configureDatabases() {
     val mongoDatabase = connectToMongoDB()
     val dotService = DotService(mongoDatabase)
+
+    launch {
+        dotService.ensureIndexesAndCollections()
+    }
+
+    fun isValidLatitude(lat: Double): Boolean {
+        return lat >= -90 && lat <= 90
+    }
+
+    fun isValidLongitude(lng: Double): Boolean {
+        return lng >= -180 && lng <= 180
+    }
+
     routing {
         // Create dot
         post("/dots") {
             val payload = call.receive<Payload>()
             when {
-                payload.message == null -> call.respond(HttpStatusCode.BadRequest, "Note can not be empty.")
-                payload.message.length >= 500 -> call.respond(HttpStatusCode.BadRequest, "You note is too long.")
-                payload.userId.isNullOrEmpty() -> call.respond(HttpStatusCode.BadRequest, "Invalid userId.")
+                payload.message == null -> {
+                    call.respond(HttpStatusCode.BadRequest, "Note can not be empty.")
+                    return@post
+                }
+
+                payload.message.length >= 500 -> {
+                    call.respond(HttpStatusCode.BadRequest, "Your note is too long (max 500 characters).")
+                    return@post
+                }
+
+                payload.userId.isNullOrEmpty() -> {
+                    call.respond(HttpStatusCode.BadRequest, "Invalid userId.")
+                    return@post
+                }
+
+                payload.coordinates == null -> {
+                    call.respond(HttpStatusCode.BadRequest, "Invalid coordinates.")
+                    return@post
+                }
+
+                !isValidLatitude(payload.coordinates.latitude) -> {
+                    call.respond(HttpStatusCode.BadRequest, "Invalid latitude. Must be between -90 and 90.")
+                    return@post
+                }
+
+                !isValidLongitude(payload.coordinates.longitude) -> {
+                    call.respond(HttpStatusCode.BadRequest, "Invalid longitude. Must be between -180 and 180.")
+                    return@post
+                }
             }
             val id = dotService.create(payload)
             call.respond(HttpStatusCode.Created, id)
@@ -30,9 +69,24 @@ fun Application.configureDatabases() {
 
         // Create dot
         get("/dots") {
-            dotService.read()?.let {
-                call.respond(it)
-            } ?: call.respond(HttpStatusCode.BadRequest)
+            val latitude = call.request.queryParameters["latitude"]?.toDoubleOrNull()
+            val longitude = call.request.queryParameters["longitude"]?.toDoubleOrNull()
+
+            if (latitude == null || longitude == null) {
+                call.respond(HttpStatusCode.BadRequest, "Missing 'latitude' or 'longitude' query parameters.")
+                return@get
+            }
+            if (!isValidLatitude(latitude)) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid latitude. Must be between -90 and 90.")
+                return@get
+            }
+            if (!isValidLongitude(longitude)) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid longitude. Must be between -180 and 180.")
+                return@get
+            }
+
+            val dots = dotService.read(latitude, longitude).toDomain()
+            call.respond(HttpStatusCode.OK, dots)
         }
 //        // Read car
 //        get("/cars/{id}") {
