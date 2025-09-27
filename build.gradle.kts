@@ -1,4 +1,3 @@
-
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
@@ -6,7 +5,7 @@ plugins {
 }
 
 group = "surik.simyan.locdots"
-version = "0.0.1"
+version = "0.0.2"
 
 application {
     mainClass = "io.ktor.server.netty.EngineMain"
@@ -16,18 +15,13 @@ repositories {
     mavenCentral()
 }
 
-ktor {
-    docker {
-        jreVersion.set(JavaVersion.VERSION_23)
-        localImageName.set("locdots-backend-image")
-        imageTag.set("0.0.1-preview")
-    }
-}
+jib.to.image = "locdots-backend-image:latest"
 
 dependencies {
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.server.status.pages)
     implementation(libs.mongodb.driver.core)
     implementation(libs.mongodb.driver.sync)
     implementation(libs.bson)

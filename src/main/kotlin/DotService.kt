@@ -8,15 +8,14 @@ import com.mongodb.client.model.geojson.Point
 import com.mongodb.client.model.geojson.Position
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.bson.Document
 import org.bson.types.ObjectId
-import surik.simyan.locdots.server.data.Coordinates
 import surik.simyan.locdots.server.data.Dot
-import surik.simyan.locdots.server.data.Payload
+import surik.simyan.locdots.server.data.CreateDotBody
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class DotService(private val database: MongoDatabase) {
     var collection: MongoCollection<Document>
@@ -37,12 +36,13 @@ class DotService(private val database: MongoDatabase) {
     }
 
     // Create new dot
-    suspend fun create(payload: Payload): String = withContext(Dispatchers.IO) {
+    @OptIn(ExperimentalTime::class)
+    suspend fun create(createDotBody: CreateDotBody): String = withContext(Dispatchers.IO) {
         val doc = Dot(
             ObjectId(),
-            payload.userId!!,
-            payload.message!!,
-            payload.coordinates!!,
+            createDotBody.userId!!,
+            createDotBody.message!!,
+            createDotBody.coordinates!!,
             Clock.System.now().toLocalDateTime(TimeZone.UTC)
         ).toDocument()
         collection.insertOne(doc)

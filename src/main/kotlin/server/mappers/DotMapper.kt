@@ -9,4 +9,4 @@ fun List<DataDot>?.toDomain(): List<DomainDot> = if (this.isNullOrEmpty()) {
     this.map { it.toDomain() }
 }
 
-fun DataDot.toDomain() = DomainDot(id.toHexString(), message, location, dateTime)
+fun DataDot.toDomain() = DomainDot(id.toHexString(), message, coordinates, dateTime)

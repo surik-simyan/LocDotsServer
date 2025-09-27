@@ -19,13 +19,13 @@ data class Dot(
     val id: ObjectId,
     val userId: String,
     val message: String,
-    val location: Coordinates,
+    val coordinates: Coordinates,
     @Contextual
     val dateTime: LocalDateTime
 ) {
     fun toDocument(): Document {
         val geoJsonLocation =
-            Document("type", "Point").append("coordinates", listOf(location.longitude, location.latitude))
+            Document("type", "Point").append("coordinates", listOf(coordinates.longitude, coordinates.latitude))
 
         return Document()
             .append("_id", id)

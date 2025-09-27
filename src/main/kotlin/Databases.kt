@@ -6,10 +6,11 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.config.*
 import io.ktor.server.request.*
-import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.launch
-import surik.simyan.locdots.server.data.Payload
+import surik.simyan.locdots.server.api.response.respondSuccess
+import surik.simyan.locdots.server.api.util.requireParameter
+import surik.simyan.locdots.server.data.CreateDotBody
 import surik.simyan.locdots.server.mappers.toDomain
 
 fun Application.configureDatabases() {
@@ -29,103 +30,36 @@ fun Application.configureDatabases() {
     }
 
     routing {
-        // Create dot
-        post("/dots") {
-            val payload = call.receive<Payload>()
-            when {
-                payload.message == null -> {
-                    call.respond(HttpStatusCode.BadRequest, "Note can not be empty.")
-                    return@post
-                }
-
-                payload.message.length >= 500 -> {
-                    call.respond(HttpStatusCode.BadRequest, "Your note is too long (max 500 characters).")
-                    return@post
-                }
-
-                payload.userId.isNullOrEmpty() -> {
-                    call.respond(HttpStatusCode.BadRequest, "Invalid userId.")
-                    return@post
-                }
-
-                payload.coordinates == null -> {
-                    call.respond(HttpStatusCode.BadRequest, "Invalid coordinates.")
-                    return@post
-                }
-
-                !isValidLatitude(payload.coordinates.latitude) -> {
-                    call.respond(HttpStatusCode.BadRequest, "Invalid latitude. Must be between -90 and 90.")
-                    return@post
-                }
-
-                !isValidLongitude(payload.coordinates.longitude) -> {
-                    call.respond(HttpStatusCode.BadRequest, "Invalid longitude. Must be between -180 and 180.")
-                    return@post
-                }
-            }
-            val id = dotService.create(payload)
-            call.respond(HttpStatusCode.Created, id)
-        }
-
-        // Create dot
+        // Get dots
         get("/dots") {
             val latitude = call.request.queryParameters["latitude"]?.toDoubleOrNull()
             val longitude = call.request.queryParameters["longitude"]?.toDoubleOrNull()
 
-            if (latitude == null || longitude == null) {
-                call.respond(HttpStatusCode.BadRequest, "Missing 'latitude' or 'longitude' query parameters.")
-                return@get
-            }
-            if (!isValidLatitude(latitude)) {
-                call.respond(HttpStatusCode.BadRequest, "Invalid latitude. Must be between -90 and 90.")
-                return@get
-            }
-            if (!isValidLongitude(longitude)) {
-                call.respond(HttpStatusCode.BadRequest, "Invalid longitude. Must be between -180 and 180.")
-                return@get
-            }
+            requireParameter(latitude != null) { "Missing latitude query parameters." }
+            requireParameter(longitude != null) { "Missing longitude query parameters." }
+            requireParameter(isValidLatitude(latitude)) { "Invalid latitude. Must be between -90 and 90." }
+            requireParameter(isValidLongitude(longitude)) { "Invalid longitude. Must be between -180 and 180." }
 
             val dots = dotService.read(latitude, longitude).toDomain()
-            call.respond(HttpStatusCode.OK, dots)
+            call.respondSuccess(data = dots)
         }
-//        // Read car
-//        get("/cars/{id}") {
-//            val id = call.parameters["id"] ?: throw IllegalArgumentException("No ID found")
-//            carService.read(id)?.let { car ->
-//                call.respond(car)
-//            } ?: call.respond(HttpStatusCode.NotFound)
-//        }
-//        // Update car
-//        put("/cars/{id}") {
-//            val id = call.parameters["id"] ?: throw IllegalArgumentException("No ID found")
-//            val car = call.receive<Car>()
-//            carService.update(id, car)?.let {
-//                call.respond(HttpStatusCode.OK)
-//            } ?: call.respond(HttpStatusCode.NotFound)
-//        }
-//        // Delete car
-//        delete("/cars/{id}") {
-//            val id = call.parameters["id"] ?: throw IllegalArgumentException("No ID found")
-//            carService.delete(id)?.let {
-//                call.respond(HttpStatusCode.OK)
-//            } ?: call.respond(HttpStatusCode.NotFound)
-//        }
+
+        // Create dot
+        post("/dots") {
+            val createDotBody = call.receive<CreateDotBody>()
+            requireParameter(createDotBody.message != null) { "Note can not be empty." }
+            requireParameter(createDotBody.message.length < 500) { "Your note is too long (max 500 characters)." }
+            requireParameter(createDotBody.userId.isNullOrEmpty().not()) { "Invalid userId." }
+            requireParameter(createDotBody.coordinates != null) { "Invalid coordinates." }
+            requireParameter(isValidLatitude(createDotBody.coordinates.latitude)) { "Invalid latitude. Must be between -90 and 90." }
+            requireParameter(isValidLongitude(createDotBody.coordinates.longitude)) { "Invalid longitude. Must be between -180 and 180." }
+
+            val id = dotService.create(createDotBody)
+            call.respondSuccess(data = mapOf("id" to id), status = HttpStatusCode.Created)
+        }
     }
 }
 
-/**
- * Establishes connection with a MongoDB database.
- *
- * The following configuration properties (in application.yaml/application.conf) can be specified:
- * * `db.mongo.maxPoolSize` maximum number of connections to a MongoDB server
- * * `db.mongo.database.name` name of the database
- *
- * IMPORTANT NOTE: in order to make MongoDB connection working, you have to start a MongoDB server first.
- * See the instructions here: https://www.mongodb.com/docs/manual/administration/install-community/
- * all the paramaters above
- *
- * @returns [MongoDatabase] instance
- * */
 fun Application.connectToMongoDB(): MongoDatabase {
     val maxPoolSize = environment.config.tryGetString("mongo.maxPoolSize")?.toInt() ?: 20
     val databaseName = environment.config.tryGetString("mongo.databaseName") ?: "dots"
