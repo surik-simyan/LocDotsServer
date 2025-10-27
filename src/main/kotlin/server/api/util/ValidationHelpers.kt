@@ -5,7 +5,10 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 @OptIn(ExperimentalContracts::class)
-inline fun requireParameter(value: Boolean, lazyMessage: () -> Any) {
+inline fun requireParameter(
+    value: Boolean,
+    lazyMessage: () -> Any,
+) {
     contract {
         returns() implies value
     }

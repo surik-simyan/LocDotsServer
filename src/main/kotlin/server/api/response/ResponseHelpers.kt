@@ -1,13 +1,13 @@
 package surik.simyan.locdots.server.api.response
 
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.response.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.response.respond
 
 suspend inline fun <reified T> ApplicationCall.respondSuccess(
     data: T,
     status: HttpStatusCode = HttpStatusCode.OK,
-    meta: Meta? = null
+    meta: Meta? = null,
 ) {
     respond(status, ApiResponse.Success(data = data, meta = meta))
 }
@@ -16,7 +16,7 @@ suspend fun ApplicationCall.respondError(
     status: HttpStatusCode,
     code: String,
     message: String,
-    traceId: String? = null
+    traceId: String? = null,
 ) {
     respond(status, ApiResponse.Error(error = ErrorDetail(code, message, traceId)))
 }

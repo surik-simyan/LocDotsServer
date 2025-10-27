@@ -21,7 +21,8 @@ data class Dot(
     val message: String,
     val coordinates: Coordinates,
     @Contextual
-    val dateTime: LocalDateTime
+    val dateTime: LocalDateTime,
+    val distance: Double? = null,
 ) {
     fun toDocument(): Document {
         val geoJsonLocation =
@@ -52,7 +53,10 @@ data class Dot(
             val dateTimeString = document.getString("dateTime")
             val dateTime = LocalDateTime.parse(dateTimeString)
 
-            return Dot(id, userId, message, coordinates, dateTime)
+            val distDoc = document.get("dist", Document::class.java)
+            val distance = distDoc?.getDouble("calculated")
+
+            return Dot(id, userId, message, coordinates, dateTime, distance)
         }
     }
 }

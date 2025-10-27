@@ -11,14 +11,17 @@ import kotlinx.serialization.modules.SerializersModule
 
 fun Application.configureSerialization() {
     install(ContentNegotiation) {
-        json(Json {
-            isLenient = true
-            ignoreUnknownKeys = true
-            useAlternativeNames = false
-            encodeDefaults = true
-            serializersModule = SerializersModule {
-                contextual(LocalDateTime::class, LocalDateTimeIso8601Serializer)
-            }
-        })
+        json(
+            Json {
+                isLenient = true
+                ignoreUnknownKeys = true
+                useAlternativeNames = false
+                encodeDefaults = true
+                serializersModule =
+                    SerializersModule {
+                        contextual(LocalDateTime::class, LocalDateTimeIso8601Serializer)
+                    }
+            },
+        )
     }
 }

@@ -11,11 +11,12 @@ import org.bson.types.ObjectId
 object ObjectIdAsStringSerializer : KSerializer<ObjectId> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("ObjectId", PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: ObjectId) {
+    override fun serialize(
+        encoder: Encoder,
+        value: ObjectId,
+    ) {
         encoder.encodeString(value.toString())
     }
 
-    override fun deserialize(decoder: Decoder): ObjectId {
-        return ObjectId(decoder.decodeString())
-    }
+    override fun deserialize(decoder: Decoder): ObjectId = ObjectId(decoder.decodeString())
 }

@@ -2,15 +2,19 @@ package surik.simyan.locdots
 
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoDatabase
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.config.*
-import io.ktor.server.request.*
-import io.ktor.server.routing.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopped
+import io.ktor.server.config.tryGetString
+import io.ktor.server.request.receive
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.routing
 import kotlinx.coroutines.launch
 import surik.simyan.locdots.server.api.response.respondSuccess
 import surik.simyan.locdots.server.api.util.requireParameter
 import surik.simyan.locdots.server.data.CreateDotBody
+import surik.simyan.locdots.server.data.DotSort
 import surik.simyan.locdots.server.mappers.toDomain
 
 fun Application.configureDatabases() {
@@ -21,26 +25,23 @@ fun Application.configureDatabases() {
         dotService.ensureIndexesAndCollections()
     }
 
-    fun isValidLatitude(lat: Double): Boolean {
-        return lat >= -90 && lat <= 90
-    }
+    fun isValidLatitude(latitude: Double): Boolean = latitude >= -90 && latitude <= 90
 
-    fun isValidLongitude(lng: Double): Boolean {
-        return lng >= -180 && lng <= 180
-    }
+    fun isValidLongitude(longitude: Double): Boolean = longitude >= -180 && longitude <= 180
 
     routing {
         // Get dots
         get("/dots") {
             val latitude = call.request.queryParameters["latitude"]?.toDoubleOrNull()
             val longitude = call.request.queryParameters["longitude"]?.toDoubleOrNull()
+            val sortingType = call.request.queryParameters["sortingType"].orEmpty()
 
             requireParameter(latitude != null) { "Missing latitude query parameters." }
             requireParameter(longitude != null) { "Missing longitude query parameters." }
             requireParameter(isValidLatitude(latitude)) { "Invalid latitude. Must be between -90 and 90." }
             requireParameter(isValidLongitude(longitude)) { "Invalid longitude. Must be between -180 and 180." }
 
-            val dots = dotService.read(latitude, longitude).toDomain()
+            val dots = dotService.read(latitude, longitude, DotSort.toSortType(sortingType)).toDomain()
             call.respondSuccess(data = dots)
         }
 

@@ -8,13 +8,13 @@ sealed class ApiResponse<out T> {
     data class Success<T>(
         val success: Boolean = true,
         val data: T,
-        val meta: Meta? = null
+        val meta: Meta? = null,
     ) : ApiResponse<T>()
 
     @Serializable
     data class Error(
         val success: Boolean = false,
-        val error: ErrorDetail
+        val error: ErrorDetail,
     ) : ApiResponse<Nothing>()
 }
 
@@ -22,12 +22,12 @@ sealed class ApiResponse<out T> {
 data class Meta(
     val page: Int? = null,
     val limit: Int? = null,
-    val total: Int? = null
+    val total: Int? = null,
 )
 
 @Serializable
 data class ErrorDetail(
     val code: String,
     val message: String,
-    val traceId: String? = null
+    val traceId: String? = null,
 )

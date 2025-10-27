@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 data class CreateDotBody(
     val userId: String?,
     val message: String?,
-    val coordinates: Coordinates?
+    val coordinates: Coordinates?,
 )

@@ -12,4 +12,5 @@ data class Dot(
     val coordinates: Coordinates,
     @Serializable(with = LocalDateTimeIso8601Serializer::class)
     val dateTime: LocalDateTime,
+    val distance: Double? = null,
 )

@@ -12,12 +12,15 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.bson.Document
 import org.bson.types.ObjectId
-import surik.simyan.locdots.server.data.Dot
 import surik.simyan.locdots.server.data.CreateDotBody
+import surik.simyan.locdots.server.data.Dot
+import surik.simyan.locdots.server.data.DotSort
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-class DotService(private val database: MongoDatabase) {
+class DotService(
+    private val database: MongoDatabase,
+) {
     var collection: MongoCollection<Document>
 
     init {
@@ -37,52 +40,69 @@ class DotService(private val database: MongoDatabase) {
 
     // Create new dot
     @OptIn(ExperimentalTime::class)
-    suspend fun create(createDotBody: CreateDotBody): String = withContext(Dispatchers.IO) {
-        val doc = Dot(
-            ObjectId(),
-            createDotBody.userId!!,
-            createDotBody.message!!,
-            createDotBody.coordinates!!,
-            Clock.System.now().toLocalDateTime(TimeZone.UTC)
-        ).toDocument()
-        collection.insertOne(doc)
-        doc["_id"].toString()
-    }
+    suspend fun create(createDotBody: CreateDotBody): String =
+        withContext(Dispatchers.IO) {
+            val doc =
+                Dot(
+                    ObjectId(),
+                    createDotBody.userId!!,
+                    createDotBody.message!!,
+                    createDotBody.coordinates!!,
+                    Clock.System.now().toLocalDateTime(TimeZone.UTC),
+                ).toDocument()
+            collection.insertOne(doc)
+            doc["_id"].toString()
+        }
 
     // Read all dots
     suspend fun read(
         userLatitude: Double,
         userLongitude: Double,
-    ): List<Dot>? = withContext(Dispatchers.IO) {
-        val userLocation = Point(Position(userLongitude, userLatitude))
-        val maxDistanceMeters = 5 * 1000.0
-        val pipeline = listOf(
-            Document(
-                "\$geoNear", Document()
-                    .append("near", userLocation)
-                    .append("distanceField", "dist.calculated")
-                    .append("maxDistance", maxDistanceMeters)
-                    .append("spherical", true)
-            )
-        )
-        collection.aggregate(pipeline, Document::class.java)
-            .map { doc -> Dot.fromDocument(doc) }
-            .toList()
-    }
+        sortingType: DotSort,
+    ): List<Dot> =
+        withContext(Dispatchers.IO) {
+            val userLocation = Point(Position(userLongitude, userLatitude))
+            val maxDistanceMeters = 5 * 1000.0
+            val geoNear =
+                Document(
+                    $$"$geoNear",
+                    Document()
+                        .append("near", userLocation)
+                        .append("distanceField", "dist.calculated")
+                        .append("maxDistance", maxDistanceMeters)
+                        .append("spherical", true),
+                )
+
+            val pipeline = mutableListOf(geoNear)
+
+            if (sortingType == DotSort.PostDate) {
+                pipeline.add(Document($$"$sort", Document("dateTime", -1)))
+            }
+
+            collection
+                .aggregate(pipeline, Document::class.java)
+                .map { doc -> Dot.fromDocument(doc) }
+                .toList()
+        }
 
     // Read a dot
-    suspend fun read(id: String): Dot? = withContext(Dispatchers.IO) {
-        collection.find(Filters.eq("_id", ObjectId(id))).first()?.let(Dot::fromDocument)
-    }
+    suspend fun read(id: String): Dot? =
+        withContext(Dispatchers.IO) {
+            collection.find(Filters.eq("_id", ObjectId(id))).first()?.let(Dot::fromDocument)
+        }
 
     // Update a dot
-    suspend fun update(id: String, dot: Dot): Document? = withContext(Dispatchers.IO) {
-        collection.findOneAndReplace(Filters.eq("_id", ObjectId(id)), dot.toDocument())
-    }
+    suspend fun update(
+        id: String,
+        dot: Dot,
+    ): Document? =
+        withContext(Dispatchers.IO) {
+            collection.findOneAndReplace(Filters.eq("_id", ObjectId(id)), dot.toDocument())
+        }
 
     // Delete a dot
-    suspend fun delete(id: String): Document? = withContext(Dispatchers.IO) {
-        collection.findOneAndDelete(Filters.eq("_id", ObjectId(id)))
-    }
+    suspend fun delete(id: String): Document? =
+        withContext(Dispatchers.IO) {
+            collection.findOneAndDelete(Filters.eq("_id", ObjectId(id)))
+        }
 }
-
